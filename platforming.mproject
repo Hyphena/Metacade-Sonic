@@ -1,0 +1,19 @@
+{
+	"meta": {
+		"name": "platforming",
+		"game": "Platformer",
+		"author": "Serena",
+		"description": "Basic platforming.",
+		"width": 400,
+		"height": 300
+	},
+	"scripts": {
+		"main": "main.js"
+	},
+	"textures": {
+
+	},
+	"sounds": {
+		
+	}
+}
