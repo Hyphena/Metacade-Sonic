@@ -40,6 +40,7 @@ function onKeyPressed(key)
 {
     if (key == 4) { player.leftDown = true; }
     if (key == 7) { player.rightDown = true; }
+    if (key == 22) { player.downDown = true; }
 }
 
 
@@ -47,6 +48,7 @@ function onKeyReleased(key)
 {
     if (key == 4) { player.leftDown = false; }
     if (key == 7) { player.rightDown = false; }
+    if (key == 22) { player.downDown = false; }
 }
 
 
@@ -59,6 +61,11 @@ function player(x, y)
 
     this.leftDown = false;
     this.rightDown = false;
+    this.downDown = false;
+
+    this.braking = false;
+    this.crouching = false;
+    this.rolling = false;
 
     this.xsp = 0;
     this.ysp = 0;
@@ -69,7 +76,6 @@ function player(x, y)
     this.frc = 0.046875;
     this.top = 6;
 
-    this.braking = false;
     this.facingDir = true; // F = L; T = R
     this.frameCounter = 0;
     this.currentFrame = 0;
@@ -85,8 +91,14 @@ function player(x, y)
 
     this.think = function()
     {
+        this.physics();
+    }
+
+
+    this.physics = function()
+    {
         this.running();
-        // this.roll();
+        this.roll();
         this.transform();
     }
 
@@ -96,12 +108,12 @@ function player(x, y)
         if (this.leftDown)
         {
             if (this.gsp > 0) { this.gsp -= this.dec; }
-            else if (this.gsp > -this.top) { this.gsp -= this.acc; }
+            else if (this.gsp > -this.top && !this.rolling) { this.gsp -= this.acc; }
         }
         else if (this.rightDown)
         {
             if (this.gsp < 0) { this.gsp += this.dec; }
-            else if (this.gsp < this.top) { this.gsp += this.acc; }
+            else if (this.gsp < this.top && !this.rolling) { this.gsp += this.acc; }
         }
         else
         { 
@@ -113,14 +125,46 @@ function player(x, y)
     }
 
 
-    // this.roll() = function()
-    // {
+    this.roll = function()
+    {
+        // TODO: Allow crouching and rolling
+        // crouching
+        // - dont allow any movement or animations besides crouching
+        // - LATER holding jump to spindash, but at a later date
+        // rolling https://info.sonicretro.org/SPG:Rolling
+        // - roll up when holding down S
+        // - friction is half of normal
+        // - holding opp of motion will slow Xspd by .125
+        // - while decelerating Xspd is slowed by half of friction + maybe .125
+        // - sonic cannot roll up unless Xspd is greater than 1.03125 (oddly specific)
+        // - sonic unrolls if Xspd falls under .5
+        // -- LATER: allow full air control while rolling
+        // -- OPTIONAL: top speed is 16 gsp
 
-    // }
+        // TODO: Figure out why holding the moving direction while rolling doesn't slow down
+
+        if (this.downDown && Math.abs(this.xsp) > 1.03125 && !this.rolling)
+        {
+            this.rolling = true;
+            this.frc = this.frc / 2;
+        }
+
+        if (!this.downDown && Math.abs(this.xsp) < 0.5)
+        {
+            this.rolling = false;
+            this.frc = 0.046875;
+        }
+    }
 
 
     this.transform = function()
     {
+        if (this.crouching)
+        {
+            this.xsp = 0;
+            this.gsp = 0;
+        }
+
         this.x += this.xsp;
         this.x = Math.min(Math.max(this.x, 50), 330);
     }
@@ -142,24 +186,43 @@ function player(x, y)
         
         // Animation functions (now a lot cleaner!)
         this.brakingAnimation();
+        this.rollingAnimation();
+        this.crouchingAnimation();
 
-        if (!this.braking)
+        if (!this.braking && !this.downDown && !this.rolling)
         {
             this.runningAnimation();
         }
 
 
-        // Increment the counter while under the frame's duration
-        // otherwise, advance a frame and refresh the counter.
-        if (this.frameCounter <= this.frameDuration)
-        { 
-            this.frameCounter++;
+        if (!this.crouching)
+        {
+            // Increment the counter while under the frame's duration
+            // otherwise, advance a frame and refresh the counter.
+            if (this.frameCounter <= this.frameDuration)
+            { 
+                this.frameCounter++;
+            }
+            else
+            {
+                this.frameCounter = 0;
+                this.currentFrame++;
+            }
         }
         else
         {
-            this.frameCounter = 0;
-            this.currentFrame++;
+            if (this.frameCounter <= this.frameDuration)
+            {
+                this.frameCounter++;
+            }
+            else if (this.currentFrame + 1 <= 3)
+            {
+                this.frameCounter = 0;
+                this.currentFrame++;
+            }
         }
+
+        // TODO: Figure out why going from crouch/roll to run sometimes bugs out
     }
 
 
@@ -180,36 +243,40 @@ function player(x, y)
             this.drawnFrame = assets["rSonicWalking.tex"];
             this.frameSheetLength = 576;
             this.facingDir = true;
+            this.frameDuration = 2;
         }
         else if (this.gsp < 0 && this.gsp > -4.5)
         {
             this.drawnFrame = assets["lSonicWalking.tex"];
             this.frameSheetLength = 576;
             this.facingDir = false;
+            this.frameDuration = 2;
         }
         // Draw jogging sprite
         else if (this.gsp >= 4.5 && this.gsp < 6)
         {
             this.drawnFrame = assets["rSonicJogging.tex"];
             this.frameSheetLength = 480;
+            this.frameDuration = 1;
         }
         else if (this.gsp <= -4.5 && this.gsp > -6)
         {
             this.drawnFrame = assets["lSonicJogging.tex"];
             this.frameSheetLength = 480;
+            this.frameDuration = 1;
         }
         // Draw running sprite
         else if (this.gsp >= 6)
         {
             this.drawnFrame = assets["rSonicRunning.tex"];
             this.frameSheetLength = 384;
-            this.frameDuration = 1;
+            this.frameDuration = .5;
         }
         else if (this.gsp <= -6)
         {
             this.drawnFrame = assets["lSonicRunning.tex"];
             this.frameSheetLength = 384;
-            this.frameDuration = 1;
+            this.frameDuration = .5;
         }
     }
 
@@ -227,7 +294,7 @@ function player(x, y)
             this.currentFrame = 0;
             this.drawnFrame = assets["rSonicBraking.tex"];
         }
-        else if (this.rightDown && this.gsp <= -4.5 && !this.braking)
+        if (this.rightDown && this.gsp <= -4.5 && !this.braking)
         {
             this.braking = true;
             this.currentFrame = 0;
@@ -240,7 +307,11 @@ function player(x, y)
             this.frameSheetLength = 576;
             this.frameDuration = 1;
             
-            if (this.currentFrame == 9 && !this.leftDown)
+            if (this.currentFrame == 9 && this.facingDir && !this.leftDown)
+            {
+                this.braking = false;
+            }
+            if (this.currentFrame == 9 && !this.facingDir && !this.rightDown)
             {
                 this.braking = false;
             }
@@ -248,6 +319,58 @@ function player(x, y)
             {
                 this.braking = false;
             }
+        }
+
+        // TODO: Add dust puffs
+    }
+
+
+    this.crouchingAnimation = function()
+    {
+        if (this.downDown && Math.abs(this.xsp) < 1.03125 && !this.crouching)
+        {
+            this.crouching = true;
+            this.currentFrame = 0;
+        }
+
+        if (this.crouching)
+        {
+            if (!this.downDown)
+            {
+                this.crouching = false;
+            }
+
+            this.frameDuration = 1;
+
+            if (this.facingDir)
+            {
+                this.drawnFrame = assets["rSonicCrouch.tex"];
+            }
+            else
+            {
+                this.drawnFrame = assets["lSonicCrouch.tex"];
+            }
+
+            this.frameSheetLength = 192;
+        }
+    }
+
+
+    this.rollingAnimation = function()
+    {
+        if (this.rolling)
+        {
+            if (this.facingDir)
+            {
+                this.drawnFrame = assets["rSonicRoll.tex"];
+            }
+            else
+            {
+                this.drawnFrame = assets["lSonicRoll.tex"];
+            }
+
+            this.frameSheetLength = 768;
+            this.frameDuration = 1;
         }
     }
 
@@ -287,6 +410,7 @@ function ground(x, y)
         }
     }
 }
+
 
 function background(x, y, w, h, asset, scrollSpeed)
 {
