@@ -82,6 +82,7 @@ function onKeyReleased(key)
 // TODO: Add the second balancing animation
 // TODO: Fix dust puffs sticking to sonic instead of world (see #3)
 
+
 function player(x, y)
 {
     this.x = x || 0;
