@@ -27,10 +27,11 @@
 		"rSonicCrouch": "textures/R_Sonic_Crouch.png",
 		"rSonicRoll": "textures/R_Sonic_Roll.png",
 		"rSonicJump": "textures/R_Sonic_Jump.png",
+		"dustPuff": "textures/Dust_Puff.png",
 		"backgroundMain": "textures/Background1.png",
 		"groundTile": "textures/Ground.png"
 	},
 	"sounds": {
-		
+		"stageMusic": "audio/HydrocityAct2.mp3"
 	}
 }

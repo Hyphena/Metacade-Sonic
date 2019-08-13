@@ -3,6 +3,9 @@ var ground1;
 var ground2;
 var background1;
 var background2;
+var dustPuff;
+
+var particles = [];
 
 
 function init()
@@ -12,6 +15,8 @@ function init()
     ground2 = new ground(576, 292);
     background1 = new background(256, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
     background2 = new background(256+512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
+
+    _s.play(assets["stageMusic.snd"], 1);
     _r.color(1, 1, 1);
 }
 
@@ -23,6 +28,20 @@ function draw()
     ground2.draw();
     background1.draw();
     background2.draw();
+    
+
+    if (particles.length > 0)
+    {
+        for (let i = 0; i < particles.length; i++)
+        {
+            particles[i].draw();
+
+            if (particles[i].currentFrame >= particles[i].frameSheetLength / particles[i].frameSpriteLength)
+            {
+                particles.splice(i, 1);
+            }
+        }
+    }
 }
 
 
@@ -307,6 +326,12 @@ function player(x, y)
             this.frameSheetLength = 576;
             this.frameDuration = 1;
             
+            // Add dust puffs every 4 frames
+            if (this.currentFrame % 4 == 0)
+            {
+                particles.push(new particle(this.x, this.y + 18, 16, 20));
+            }
+            
             if (this.currentFrame == 9 && this.facingDir && !this.leftDown)
             {
                 this.braking = false;
@@ -320,8 +345,6 @@ function player(x, y)
                 this.braking = false;
             }
         }
-
-        // TODO: Add dust puffs
     }
 
 
@@ -440,6 +463,50 @@ function background(x, y, w, h, asset, scrollSpeed)
         else if (this.x > this.w + (this.w / 2))
         {
             this.x -= this.w * 2;
+        }
+    }
+}
+
+
+function particle(x, y, w, h, asset, frameSpriteLength, frameSheetLength)
+{
+    this.x = x || 0;
+    this.y = y || 0;
+    this.w = w || 32;
+    this.h = h || 32;
+    this.asset = asset || assets["dustPuff.tex"];
+
+    this.frameCounter = 0;
+    this.currentFrame = 0;
+    this.frameDuration = 1;
+    this.frameSpriteLength = this.frameSpriteLength || 16;
+    this.frameSheetLength = this.frameSheetLength || 160;
+
+    this.draw = function()
+    {
+        // _r.sprite(this.x, this.y, this.w, this.h, 0, this.asset);
+
+        _r.sprite(this.x, this.y, this.w, this.h, 0, this.asset,
+            this.currentFrame * this.frameSpriteLength / this.frameSheetLength,
+            0, (this.currentFrame + 1) * this.frameSpriteLength
+            / this.frameSheetLength, 1);
+
+        if (this.frameCounter <= this.frameDuration)
+        { 
+            this.frameCounter++;
+        }
+        else
+        {
+            this.frameCounter = 0;
+            this.currentFrame++;
+        }
+    }
+
+    this.think = function()
+    {
+        if (player.x == 330 || player.x == 50)
+        {
+            this.x -= player.getXSpeed() * this.scrollSpeed;
         }
     }
 }
