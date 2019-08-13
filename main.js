@@ -25,7 +25,7 @@ function draw()
 {
     player.draw();
     ground1.draw();
-    ground2.draw();
+    // ground2.draw();
     background1.draw();
     background2.draw();
     
@@ -71,6 +71,17 @@ function onKeyReleased(key)
 }
 
 
+// TODO: Use box collisions instead of lines
+// TODO: Create a 2D array for every 16x16 tile on the stage
+// TODO: Create another array for height masks for every tile
+// EXAMPLE: [[0, 0, 0], [0, 0, 0], [1, 1, 1]]
+//  - All the 0's are air and have no height
+//  - All the 1's have a height mask of 16 for each column
+//  - Have line sensors perform some modulus magic to get the appropriate height mask column
+// TODO: Create an x and y relative to the world instead of the screen
+// TODO: Add the second balancing animation
+// TODO: Fix dust puffs sticking to sonic instead of world (see #3)
+
 function player(x, y)
 {
     this.x = x || 0;
@@ -84,16 +95,26 @@ function player(x, y)
 
     this.braking = false;
     this.crouching = false;
+    this.leftGrounded = false;
+    this.rightGrounded = false;
     this.rolling = false;
 
     this.xsp = 0;
     this.ysp = 0;
     this.gsp = 0;
+    this.slope = 0;
+    this.ang = 0;
 
     this.acc = 0.046875;
     this.dec = 0.5;
     this.frc = 0.046875;
     this.top = 6;
+    this.jmp = 6.5;
+    this.grv = 0.21875;
+    this.slp = 0.125;
+    this.slprollup = 0.078125;
+    this.slprolldown = 0.3125;
+    this.fall = 2.5;
 
     this.facingDir = true; // F = L; T = R
     this.frameCounter = 0;
@@ -116,9 +137,32 @@ function player(x, y)
 
     this.physics = function()
     {
+        this.collision();
         this.running();
         this.roll();
         this.transform();
+    }
+
+
+    this.collision = function()
+    {
+        if (this.intersects(this.x - 7, this.y, this.x - 7, this.y + 20, 0, 180, 290, 180))
+        {
+            this.leftGrounded = true;   
+        }
+        else
+        {
+            this.leftGrounded = false;
+        }
+
+        if (this.intersects(this.x + 7, this.y, this.x + 7, this.y + 20, 0, 180, 290, 180))
+        {
+            this.rightGrounded = true;
+        }
+        else
+        {
+            this.rightGrounded = false;
+        }
     }
 
 
@@ -184,9 +228,70 @@ function player(x, y)
             this.gsp = 0;
         }
 
+        if (!this.leftGrounded && !this.rightGrounded)
+        {
+            this.ysp += this.grv;
+            
+            if (this.ysp > 16)
+            {
+                this.ysp = 16;
+            }
+        }
+
         this.x += this.xsp;
         this.x = Math.min(Math.max(this.x, 50), 330);
+        this.y += this.ysp;
     }
+
+
+    this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
+    {
+        // This right here is witchcraft, I don't understand
+        // how any of it works, it just does.
+        var s1_x, s1_y, s2_x, s2_y;
+        s1_x = x2 - x1;
+        s1_y = y2 - y1;
+        s2_x = x4 - x3;
+        s2_y = y4 - y3;
+
+        var s, t;
+        s = (-s1_y * (x1 - x3) + s1_x * (y1 - y3)) / (-s2_x * s1_y + s1_x * s2_y);
+        t = (s2_x * (y1 - y3) - s2_y * (x1 - x3)) / (-s2_x * s1_y + s1_x * s2_y);
+
+        return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
+    }
+
+
+    // this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
+    // {
+    //     var det, gamma, lambda;
+    //     det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
+    //     if (det === 0)
+    //     {
+    //         print("no");
+    //         return false;
+    //     }
+    //     else
+    //     {
+    //         lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
+    //         gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
+    //         print("yes");
+    //         return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+    //     }
+    // }
+
+
+    // function intersects(x1,y1,x2,y2,x3,y3,x4,y4) {
+    //     var det, gamma, lambda;
+    //     det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
+    //     if (det === 0) {
+    //       return false;
+    //     } else {
+    //       lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
+    //       gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
+    //       return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+    //     }
+    //   };
 
 
     this.animation = function()
@@ -204,9 +309,17 @@ function player(x, y)
 
         
         // Animation functions (now a lot cleaner!)
-        this.brakingAnimation();
-        this.rollingAnimation();
-        this.crouchingAnimation();
+
+        if (this.leftGrounded && this.rightGrounded)
+        {
+            this.brakingAnimation();
+            this.rollingAnimation();
+            this.crouchingAnimation();
+        }
+        else
+        {
+            this.balanceAnimation();
+        }
 
         if (!this.braking && !this.downDown && !this.rolling)
         {
@@ -248,7 +361,7 @@ function player(x, y)
     this.runningAnimation = function()
     {
         // Draw idle sprites
-        if (this.gsp == 0)
+        if (this.gsp == 0 && this.leftGrounded && this.rightGrounded)
         { 
             if (this.facingDir) { this.drawnFrame = assets["rSonicIdle.tex"]; }
             else { this.drawnFrame = assets["lSonicIdle.tex"]; }
@@ -394,6 +507,17 @@ function player(x, y)
 
             this.frameSheetLength = 768;
             this.frameDuration = 1;
+        }
+    }
+
+
+    this.balanceAnimation = function()
+    {
+        if (this.leftGrounded && !this.rightGrounded)
+        {
+            this.drawnFrame = assets["rSonicBalance2.tex"];
+            this.frameSheetLength = 384;
+            this.frameDuration = 3;
         }
     }
 

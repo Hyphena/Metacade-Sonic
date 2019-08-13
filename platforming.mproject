@@ -26,6 +26,8 @@
 		"rSonicBraking": "textures/R_Sonic_Braking.png",
 		"rSonicCrouch": "textures/R_Sonic_Crouch.png",
 		"rSonicRoll": "textures/R_Sonic_Roll.png",
+		"rSonicBalance": "textures/R_Sonic_Balance.png",
+		"rSonicBalance2": "textures/R_Sonic_Balance_2.png",
 		"rSonicJump": "textures/R_Sonic_Jump.png",
 		"dustPuff": "textures/Dust_Puff.png",
 		"backgroundMain": "textures/Background1.png",
