@@ -1,22 +1,19 @@
 var player;
-var ground1;
-var ground2;
 var background1;
 var background2;
 var dustPuff;
+var stage;
 
 var particles = [];
 
 
 function init()
 {
-    player = new player(200, 160);
-    ground1 = new ground(0, 292);
-    ground2 = new ground(576, 292);
+    player = new player(0, 160);
     background1 = new background(256, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
     background2 = new background(256+512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
-
-    _s.play(assets["stageMusic.snd"], 1);
+    stage = new stage();
+    
     _r.color(1, 1, 1);
 }
 
@@ -24,10 +21,9 @@ function init()
 function draw()
 {
     player.draw();
-    ground1.draw();
-    // ground2.draw();
     background1.draw();
     background2.draw();
+    stage.draw();
     
 
     if (particles.length > 0)
@@ -48,10 +44,21 @@ function draw()
 function think(time, dt)
 {
     player.think();
-    ground1.think();
-    ground2.think();
-    background1.think();
-    background2.think();
+
+    if (player.drawX == 330 || player.drawX == 50)
+    {
+        background1.think();
+        background2.think();
+        stage.think();
+
+        if (particles.length > 0)
+        {
+            for (let i = 0; i < particles.length; i++)
+            {
+                particles[i].think();
+            }
+        }
+    }
 }
 
 
@@ -72,21 +79,15 @@ function onKeyReleased(key)
 
 
 // TODO: Use box collisions instead of lines
-// TODO: Create a 2D array for every 16x16 tile on the stage
-// TODO: Create another array for height masks for every tile
-// EXAMPLE: [[0, 0, 0], [0, 0, 0], [1, 1, 1]]
-//  - All the 0's are air and have no height
-//  - All the 1's have a height mask of 16 for each column
-//  - Have line sensors perform some modulus magic to get the appropriate height mask column
-// TODO: Create an x and y relative to the world instead of the screen
 // TODO: Add the second balancing animation
-// TODO: Fix dust puffs sticking to sonic instead of world (see #3)
 
 
 function player(x, y)
 {
     this.x = x || 0;
     this.y = y || 0;
+    this.drawX = this.x;
+    this.drawY = this.y;
     this.w = 48;
     this.h = 48;
 
@@ -96,8 +97,8 @@ function player(x, y)
 
     this.braking = false;
     this.crouching = false;
-    this.leftGrounded = false;
-    this.rightGrounded = false;
+    this.leftGrounded = true;
+    this.rightGrounded = true;
     this.rolling = false;
 
     this.xsp = 0;
@@ -117,6 +118,7 @@ function player(x, y)
     this.slprolldown = 0.3125;
     this.fall = 2.5;
 
+    this.drawnFrame = assets["rSonicIdle.tex"];
     this.facingDir = true; // F = L; T = R
     this.frameCounter = 0;
     this.currentFrame = 0;
@@ -133,38 +135,41 @@ function player(x, y)
     this.think = function()
     {
         this.physics();
+        // print(this.x);
+        // print(this.drawX);
     }
 
 
     this.physics = function()
     {
-        this.collision();
+        // this.collision();
         this.running();
         this.roll();
+        // this.checkSensor(this.x - 7, this.y + 20);
         this.transform();
     }
 
 
-    this.collision = function()
-    {
-        if (this.intersects(this.x - 7, this.y, this.x - 7, this.y + 20, 0, 180, 290, 180))
-        {
-            this.leftGrounded = true;   
-        }
-        else
-        {
-            this.leftGrounded = false;
-        }
+    // this.collision = function()
+    // {
+    //     if (this.intersects(this.x - 7, this.y, this.x - 7, this.y + 20, 0, 180, 290, 180))
+    //     {
+    //         this.leftGrounded = true;   
+    //     }
+    //     else
+    //     {
+    //         this.leftGrounded = false;
+    //     }
 
-        if (this.intersects(this.x + 7, this.y, this.x + 7, this.y + 20, 0, 180, 290, 180))
-        {
-            this.rightGrounded = true;
-        }
-        else
-        {
-            this.rightGrounded = false;
-        }
-    }
+    //     if (this.intersects(this.x + 7, this.y, this.x + 7, this.y + 20, 0, 180, 290, 180))
+    //     {
+    //         this.rightGrounded = true;
+    //     }
+    //     else
+    //     {
+    //         this.rightGrounded = false;
+    //     }
+    // }
 
 
     this.running = function()
@@ -229,38 +234,64 @@ function player(x, y)
             this.gsp = 0;
         }
 
-        if (!this.leftGrounded && !this.rightGrounded)
-        {
-            this.ysp += this.grv;
+        // if (!this.leftGrounded && !this.rightGrounded)
+        // {
+        //     this.ysp += this.grv;
             
-            if (this.ysp > 16)
-            {
-                this.ysp = 16;
-            }
-        }
+        //     if (this.ysp > 16)
+        //     {
+        //         this.ysp = 16;
+        //     }
+        // }
 
         this.x += this.xsp;
-        this.x = Math.min(Math.max(this.x, 50), 330);
+        this.drawX = Math.min(Math.max(this.drawX + this.xsp, 50), 330);
+        // this.x = Math.min(Math.max(this.x, 50), 330);
         this.y += this.ysp;
+        this.drawY = Math.min(Math.max(this.y + this.ysp, 50), 230);
     }
 
 
-    this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
-    {
-        // This right here is witchcraft, I don't understand
-        // how any of it works, it just does.
-        var s1_x, s1_y, s2_x, s2_y;
-        s1_x = x2 - x1;
-        s1_y = y2 - y1;
-        s2_x = x4 - x3;
-        s2_y = y4 - y3;
+    // this.checkSensor = function(x, y)
+    // {
+    //     let roundedX = (x - (x % 16)) / 16;
+    //     let roundedY = (y - (y % 16)) / 16;
 
-        var s, t;
-        s = (-s1_y * (x1 - x3) + s1_x * (y1 - y3)) / (-s2_x * s1_y + s1_x * s2_y);
-        t = (s2_x * (y1 - y3) - s2_y * (x1 - x3)) / (-s2_x * s1_y + s1_x * s2_y);
+    //     if (stageArray[roundedY][roundedX] == 0)
+    //     {
+    //         this.leftGrounded = false;
+    //         this.rightGrounded = false;
+    //         // print("hi");
+    //     }
+    //     if (stageArray[roundedY][roundedX] == 1)
+    //     {
+    //         this.leftGrounded = true;
+    //         this.rightGrounded = true;
+    //         print("bye");
+    //     }
 
-        return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
-    }
+    //     print(roundedX);
+    //     print(roundedY)
+    //     print(stageArray[roundedY][roundedX]);
+    // }
+
+
+    // this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
+    // {
+    //     // This right here is witchcraft, I don't understand
+    //     // how any of it works, it just does.
+    //     var s1_x, s1_y, s2_x, s2_y;
+    //     s1_x = x2 - x1;
+    //     s1_y = y2 - y1;
+    //     s2_x = x4 - x3;
+    //     s2_y = y4 - y3;
+
+    //     var s, t;
+    //     s = (-s1_y * (x1 - x3) + s1_x * (y1 - y3)) / (-s2_x * s1_y + s1_x * s2_y);
+    //     t = (s2_x * (y1 - y3) - s2_y * (x1 - x3)) / (-s2_x * s1_y + s1_x * s2_y);
+
+    //     return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
+    // }
 
 
     // this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
@@ -304,7 +335,7 @@ function player(x, y)
 
         // Draw the sprite (48x48) with a rotation of 0 (drawnFrame = sprite)
         // clipping uses a value from 0 to 1 (weird)
-        _r.sprite(this.x, this.y, this.w, this.h, 0, this.drawnFrame,
+        _r.sprite(this.drawX, this.drawY, this.w, this.h, 0, this.drawnFrame,
                   this.currentFrame * 48 / this.frameSheetLength, 0,
                   (this.currentFrame + 1) * 48 / this.frameSheetLength, 1);
 
@@ -443,7 +474,7 @@ function player(x, y)
             // Add dust puffs every 4 frames
             if (this.currentFrame % 4 == 0)
             {
-                particles.push(new particle(this.x, this.y + 18, 16, 20));
+                particles.push(new particle(this.drawX, this.drawY + 18, 16, 20));
             }
             
             if (this.currentFrame == 9 && this.facingDir && !this.leftDown)
@@ -521,12 +552,6 @@ function player(x, y)
             this.frameDuration = 3;
         }
     }
-
-
-    this.getXSpeed = function()
-    {
-        return this.xsp;
-    }
 }
 
 
@@ -543,10 +568,7 @@ function ground(x, y)
 
     this.think = function()
     {
-        if (player.x == 330 || player.x == 50)
-        {
-            this.x -= player.getXSpeed();
-        }
+        this.x -= player.xsp;
 
         if (this.x < -576 / 2)
         {
@@ -576,10 +598,7 @@ function background(x, y, w, h, asset, scrollSpeed)
 
     this.think = function()
     {
-        if (player.x == 330 || player.x == 50)
-        {
-            this.x -= player.getXSpeed() * this.scrollSpeed;
-        }
+        this.x -= player.xsp * this.scrollSpeed;
 
         if (this.x < -this.w / 2)
         {
@@ -600,17 +619,16 @@ function particle(x, y, w, h, asset, frameSpriteLength, frameSheetLength)
     this.w = w || 32;
     this.h = h || 32;
     this.asset = asset || assets["dustPuff.tex"];
+    this.scrollSpeed = 1;
 
     this.frameCounter = 0;
     this.currentFrame = 0;
     this.frameDuration = 1;
-    this.frameSpriteLength = this.frameSpriteLength || 16;
-    this.frameSheetLength = this.frameSheetLength || 160;
+    this.frameSpriteLength = frameSpriteLength || 16;
+    this.frameSheetLength = frameSheetLength || 160;
 
     this.draw = function()
     {
-        // _r.sprite(this.x, this.y, this.w, this.h, 0, this.asset);
-
         _r.sprite(this.x, this.y, this.w, this.h, 0, this.asset,
             this.currentFrame * this.frameSpriteLength / this.frameSheetLength,
             0, (this.currentFrame + 1) * this.frameSpriteLength
@@ -629,9 +647,39 @@ function particle(x, y, w, h, asset, frameSpriteLength, frameSheetLength)
 
     this.think = function()
     {
-        if (player.x == 330 || player.x == 50)
+        this.x -= player.xsp * this.scrollSpeed;
+    }
+}
+
+
+function stage()
+{
+    this.drawX = 0;
+    this.drawY = 0;
+    this.scrollSpeed = 1;
+
+
+    this.draw = function()
+    {
+        _r.layer++;
+
+        for(let j = 0; j < stageArray.length; j++)
         {
-            this.x -= player.getXSpeed() * this.scrollSpeed;
+            for (let i = 0; i < stageArray[j].length; i++)
+            {
+                if (stageArray[j][i] == 1)
+                {
+                    _r.sprite(this.drawX + i * 16 + 8, this.drawY + j * 16, 16, 16, 0, assets["actualGroundTile.tex"]);
+                }
+            }
         }
+
+        _r.layer--;
+    }
+
+
+    this.think = function()
+    {
+        this.drawX -= player.xsp * this.scrollSpeed;
     }
 }

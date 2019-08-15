@@ -8,7 +8,8 @@
 		"height": 300
 	},
 	"scripts": {
-		"main": "main.js"
+		"main": "main.js",
+		"stageArray": "stageArray.js"
 	},
 	"textures": {
 		"lSonicIdle": "textures/L_Sonic_Idle.png",
@@ -31,7 +32,8 @@
 		"rSonicJump": "textures/R_Sonic_Jump.png",
 		"dustPuff": "textures/Dust_Puff.png",
 		"backgroundMain": "textures/Background1.png",
-		"groundTile": "textures/Ground.png"
+		"groundTile": "textures/Ground.png",
+		"actualGroundTile": "textures/Ground_Tile.png"
 	},
 	"sounds": {
 		"stageMusic": "audio/HydrocityAct2.mp3"
