@@ -9,7 +9,8 @@ var particles = [];
 
 function init()
 {
-    player = new player(0, 160);
+    // player = new player(60, 162);
+    player = new player(200, 9+32+32);
     background1 = new background(256, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
     background2 = new background(256+512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
     stage = new stage();
@@ -45,7 +46,7 @@ function think(time, dt)
 {
     player.think();
 
-    if (player.drawX == 330 || player.drawX == 50)
+    if (player.drawX == player.camXBoundL || player.drawX == player.camXBoundR)
     {
         background1.think();
         background2.think();
@@ -88,6 +89,8 @@ function player(x, y)
     this.y = y || 0;
     this.drawX = this.x;
     this.drawY = this.y;
+    this.camXBoundL = 192;
+    this.camXBoundR = 208;
     this.w = 48;
     this.h = 48;
 
@@ -97,8 +100,8 @@ function player(x, y)
 
     this.braking = false;
     this.crouching = false;
-    this.leftGrounded = true;
-    this.rightGrounded = true;
+    this.leftGrounded = false;
+    this.rightGrounded = false;
     this.rolling = false;
 
     this.xsp = 0;
@@ -119,58 +122,96 @@ function player(x, y)
     this.fall = 2.5;
 
     this.drawnFrame = assets["rSonicIdle.tex"];
-    this.facingDir = true; // F = L; T = R
+    this.facingDir = true; // false = left; true = right
     this.frameCounter = 0;
     this.currentFrame = 0;
     this.frameDuration = 0;
     this.frameSheetLength = 48;
 
 
+    ///////  [ BASE FUNCTIONS ] ///////
+    // Used for the base methods and calls upon the other methods
+
     this.draw = function()
     {
-        this.animation();
+        // TODO: Figure out why going from crouch/roll to run sometimes bugs out
+
+        // Set the frame's duration to 8 minus the current
+        // ground speed, the faster you go the faster the
+        // frames will cycle through to a minimum of 1 step
+        this.frameDuration = Math.max(8 - Math.abs(this.gsp), 1);
+
+        // Draw the sprite (48x48) with a rotation of 0 (drawnFrame = sprite)
+        // clipping uses a value from 0 to 1 (weird)
+        _r.sprite(this.drawX, this.drawY, this.w, this.h, 0, this.drawnFrame,
+                  this.currentFrame * 48 / this.frameSheetLength, 0,
+                  (this.currentFrame + 1) * 48 / this.frameSheetLength, 1);
+                //   print(this.y + ", " + this.drawY);
+
+        
+        // Animation functions (now a lot cleaner!)
+
+        if (this.leftGrounded && this.rightGrounded)
+        {
+            this.brakingAnimation();
+            this.rollingAnimation();
+            this.crouchingAnimation();
+        }
+        else
+        {
+            this.balanceAnimation();
+        }
+
+        if (!this.braking && !this.downDown && !this.rolling)
+        {
+            this.runningAnimation();
+        }
+
+
+        if (!this.crouching)
+        {
+            // Increment the counter while under the frame's duration
+            // otherwise, advance a frame and refresh the counter.
+            if (this.frameCounter <= this.frameDuration)
+            { 
+                this.frameCounter++;
+            }
+            else
+            {
+                this.frameCounter = 0;
+                this.currentFrame++;
+            }
+        }
+        else
+        {
+            if (this.frameCounter <= this.frameDuration)
+            {
+                this.frameCounter++;
+            }
+            else if (this.currentFrame + 1 <= 3)
+            {
+                this.frameCounter = 0;
+                this.currentFrame++;
+            }
+        }
+
+        this.drawSensors();
     }
 
 
     this.think = function()
     {
-        this.physics();
-        // print(this.x);
-        // print(this.drawX);
-    }
+        this.leftGrounded = this.checkSensor(Math.trunc(this.x) - 7, Math.trunc(this.y) + 24);
+        this.rightGrounded = this.checkSensor(Math.trunc(this.x) + 7, Math.trunc(this.y) + 24);
 
-
-    this.physics = function()
-    {
-        // this.collision();
         this.running();
         this.roll();
-        // this.checkSensor(this.x - 7, this.y + 20);
         this.transform();
     }
 
 
-    // this.collision = function()
-    // {
-    //     if (this.intersects(this.x - 7, this.y, this.x - 7, this.y + 20, 0, 180, 290, 180))
-    //     {
-    //         this.leftGrounded = true;   
-    //     }
-    //     else
-    //     {
-    //         this.leftGrounded = false;
-    //     }
-
-    //     if (this.intersects(this.x + 7, this.y, this.x + 7, this.y + 20, 0, 180, 290, 180))
-    //     {
-    //         this.rightGrounded = true;
-    //     }
-    //     else
-    //     {
-    //         this.rightGrounded = false;
-    //     }
-    // }
-
+    ///////  [ PHYSICS FUNCTIONS ]  ///////
+    // Calculates the physics for certain states
 
     this.running = function()
     {
@@ -234,161 +275,120 @@ function player(x, y)
             this.gsp = 0;
         }
 
-        // if (!this.leftGrounded && !this.rightGrounded)
-        // {
-        //     this.ysp += this.grv;
+        if (!this.leftGrounded && !this.rightGrounded)
+        {
+            this.ysp += this.grv;
             
-        //     if (this.ysp > 16)
-        //     {
-        //         this.ysp = 16;
-        //     }
-        // }
+            if (this.ysp > 16)
+            {
+                this.ysp = 16;
+            }
+        }
+        else
+        {
+            this.ysp = 0;
+        }
 
         this.x += this.xsp;
-        this.drawX = Math.min(Math.max(this.drawX + this.xsp, 50), 330);
+
+        if (this.x >= 192)
+        {
+            this.drawX = Math.min(Math.max(this.drawX + this.xsp, this.camXBoundL), this.camXBoundR);
+        }
+        else
+        {
+            this.drawX = this.x;
+        }
+
         // this.x = Math.min(Math.max(this.x, 50), 330);
         this.y += this.ysp;
-        this.drawY = Math.min(Math.max(this.y + this.ysp, 50), 230);
+        this.drawY = Math.min(Math.max(this.y + this.ysp, -400), 230);
     }
 
 
-    // this.checkSensor = function(x, y)
-    // {
-    //     let roundedX = (x - (x % 16)) / 16;
-    //     let roundedY = (y - (y % 16)) / 16;
-
-    //     if (stageArray[roundedY][roundedX] == 0)
-    //     {
-    //         this.leftGrounded = false;
-    //         this.rightGrounded = false;
-    //         // print("hi");
-    //     }
-    //     if (stageArray[roundedY][roundedX] == 1)
-    //     {
-    //         this.leftGrounded = true;
-    //         this.rightGrounded = true;
-    //         print("bye");
-    //     }
-
-    //     print(roundedX);
-    //     print(roundedY)
-    //     print(stageArray[roundedY][roundedX]);
-    // }
-
-
-    // this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
-    // {
-    //     // This right here is witchcraft, I don't understand
-    //     // how any of it works, it just does.
-    //     var s1_x, s1_y, s2_x, s2_y;
-    //     s1_x = x2 - x1;
-    //     s1_y = y2 - y1;
-    //     s2_x = x4 - x3;
-    //     s2_y = y4 - y3;
-
-    //     var s, t;
-    //     s = (-s1_y * (x1 - x3) + s1_x * (y1 - y3)) / (-s2_x * s1_y + s1_x * s2_y);
-    //     t = (s2_x * (y1 - y3) - s2_y * (x1 - x3)) / (-s2_x * s1_y + s1_x * s2_y);
-
-    //     return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
-    // }
-
-
-    // this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
-    // {
-    //     var det, gamma, lambda;
-    //     det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
-    //     if (det === 0)
-    //     {
-    //         print("no");
-    //         return false;
-    //     }
-    //     else
-    //     {
-    //         lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
-    //         gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
-    //         print("yes");
-    //         return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-    //     }
-    // }
-
-
-    // function intersects(x1,y1,x2,y2,x3,y3,x4,y4) {
-    //     var det, gamma, lambda;
-    //     det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
-    //     if (det === 0) {
-    //       return false;
-    //     } else {
-    //       lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
-    //       gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
-    //       return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
-    //     }
-    //   };
-
-
-    this.animation = function()
+    this.checkSensor = function(x, y)
     {
-        // Set the frame's duration to 8 minus the current
-        // ground speed, the faster you go the faster the
-        // frames will cycle through to a minimum of 1 step
-        this.frameDuration = Math.max(8 - Math.abs(this.gsp), 1);
+        // Round down the player's position to the nearest cell in the stage
+        roundedX = (x - (x % 32)) / 32;
+        roundedY = (y - (y % 32)) / 32;
 
-        // Draw the sprite (48x48) with a rotation of 0 (drawnFrame = sprite)
-        // clipping uses a value from 0 to 1 (weird)
-        _r.sprite(this.drawX, this.drawY, this.w, this.h, 0, this.drawnFrame,
-                  this.currentFrame * 48 / this.frameSheetLength, 0,
-                  (this.currentFrame + 1) * 48 / this.frameSheetLength, 1);
-
-        
-        // Animation functions (now a lot cleaner!)
-
-        if (this.leftGrounded && this.rightGrounded)
+        if (stageArray[roundedY][roundedX] != 0)// && (this.y % 32) <= heightMask[stageArray[roundedY][roundedX]][x % 32])
         {
-            this.brakingAnimation();
-            this.rollingAnimation();
-            this.crouchingAnimation();
-        }
-        else
-        {
-            this.balanceAnimation();
-        }
+            // if (y % 32 != 0)
+            // {
+                // this.y -= heightMask[1][x % 32] - (y % 32);
+                // this.y = heightMask[1][x % 32] - (this.y % 32);
+                // this.y = 0;
+                // print(y);
+            // }
 
-        if (!this.braking && !this.downDown && !this.rolling)
-        {
-            this.runningAnimation();
-        }
+            
+            this.y = (roundedY * 32 + 9) - heightMask[stageArray[roundedY][roundedX]][x % 32];
 
-
-        if (!this.crouching)
-        {
-            // Increment the counter while under the frame's duration
-            // otherwise, advance a frame and refresh the counter.
-            if (this.frameCounter <= this.frameDuration)
-            { 
-                this.frameCounter++;
-            }
-            else
+            if (stageArray[roundedY - 1][roundedX] != 0)
             {
-                this.frameCounter = 0;
-                this.currentFrame++;
+                this.y = ((roundedY - 1) * 32 + 9) - heightMask[stageArray[roundedY - 1][roundedX]][x % 32];
             }
-        }
-        else
-        {
-            if (this.frameCounter <= this.frameDuration)
-            {
-                this.frameCounter++;
-            }
-            else if (this.currentFrame + 1 <= 3)
-            {
-                this.frameCounter = 0;
-                this.currentFrame++;
-            }
+            
+            return true;
         }
 
-        // TODO: Figure out why going from crouch/roll to run sometimes bugs out
+        return false;
+
+        // return true;
+        // this.y = 32 - 24;
+        // return true;
+        // if (stageArray[roundedY][roundedX] == 2)
+        // {
+        //     // if (y % 32 != 0)
+        //     // {
+        //         this.y -= heightMask[1][x % 32] - (y % 32);
+        //     // }
+
+        //     return true;
+        // }
+
+        // if (stageArray[roundedY][roundedX] == 0)
+        // {
+        //     this.leftGrounded = false;
+        //     this.rightGrounded = false;
+        // }
+        // if (stageArray[roundedY][roundedX] == 1)
+        // {
+        //     this.leftGrounded = true;
+        //     this.rightGrounded = true;
+        //     // this.ysp = 0;
+        //     print(Math.floor(this.y));
+        //     print(heightMask[1][Math.floor(x) % 32]);
+
+
+
+        //     // print(stageArray[roundedY][roundedX]);
+        //     // print(x);
+        //     // return heightMask[1][x % 16];
+        //     print(heightMask[1][Math.floor(x) % 32]);
+        //     // print(x);
+        //     // print(Math.floor(x) % 16);
+            // this.y = heightMask[1][Math.floor(x) % 32] * (roundedY - 1);
+            // this.y = heightMask
+
+
+
+        // }
+
+
+
+        // else
+        // {
+        //     // print("oh god help");
+        //     // print(roundedX + ", " + roundedY);
+        // }
     }
 
+
+    ///////  [ ANIMATION FUNCTIONS ]  ///////
+    // Functions used for their own respective animation and just drawing
+    // in general.
 
     this.runningAnimation = function()
     {
@@ -552,6 +552,97 @@ function player(x, y)
             this.frameDuration = 3;
         }
     }
+
+
+    this.drawSensors = function()
+    {
+        _r.layer++;
+        _r.layer++;
+
+        _r.sprite(this.drawX, this.drawY + 4, 3, 3, 0, assets["crosshair.tex"]);
+        _r.sprite(this.drawX - 7, this.drawY + 24, 3, 3, 0, assets["crosshair.tex"]);
+        _r.sprite(this.drawX + 7, this.drawY + 24, 3, 3, 0, assets["crosshair.tex"]);
+
+        _r.layer--;
+        _r.layer--;
+    }
+
+
+    ///////  [ FUNCTION STORAGE ] ///////
+    // A special function used to house all previous attempts at stuff that
+    // might be used again some day. It should probably be in another file.
+
+    this.uselessMethods = function()
+    {
+    // this.collision = function()
+    // {
+    //     if (this.intersects(this.x - 7, this.y, this.x - 7, this.y + 20, 0, 180, 290, 180))
+    //     {
+    //         this.leftGrounded = true;   
+    //     }
+    //     else
+    //     {
+    //         this.leftGrounded = false;
+    //     }
+
+    //     if (this.intersects(this.x + 7, this.y, this.x + 7, this.y + 20, 0, 180, 290, 180))
+    //     {
+    //         this.rightGrounded = true;
+    //     }
+    //     else
+    //     {
+    //         this.rightGrounded = false;
+    //     }
+    // }
+
+    // this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
+    // {
+    //     // This right here is witchcraft, I don't understand
+    //     // how any of it works, it just does.
+    //     var s1_x, s1_y, s2_x, s2_y;
+    //     s1_x = x2 - x1;
+    //     s1_y = y2 - y1;
+    //     s2_x = x4 - x3;
+    //     s2_y = y4 - y3;
+
+    //     var s, t;
+    //     s = (-s1_y * (x1 - x3) + s1_x * (y1 - y3)) / (-s2_x * s1_y + s1_x * s2_y);
+    //     t = (s2_x * (y1 - y3) - s2_y * (x1 - x3)) / (-s2_x * s1_y + s1_x * s2_y);
+
+    //     return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
+    // }
+
+
+    // this.intersects = function(x1, y1, x2, y2, x3, y3, x4, y4)
+    // {
+    //     var det, gamma, lambda;
+    //     det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
+    //     if (det === 0)
+    //     {
+    //         print("no");
+    //         return false;
+    //     }
+    //     else
+    //     {
+    //         lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
+    //         gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
+    //         print("yes");
+    //         return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+    //     }
+    // }
+
+    // function intersects(x1,y1,x2,y2,x3,y3,x4,y4) {
+    //     var det, gamma, lambda;
+    //     det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
+    //     if (det === 0) {
+    //       return false;
+    //     } else {
+    //       lambda = ((y4 - y3) * (x4 - x1) + (x3 - x4) * (y4 - y1)) / det;
+    //       gamma = ((y1 - y2) * (x4 - x1) + (x2 - x1) * (y4 - y1)) / det;
+    //       return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+    //     }
+    //   };
+    }
 }
 
 
@@ -667,14 +758,20 @@ function stage()
         {
             for (let i = 0; i < stageArray[j].length; i++)
             {
-                if (stageArray[j][i] == 1)
+                if (stageArray[j][i] != 0)
                 {
-                    _r.sprite(this.drawX + i * 16 + 8, this.drawY + j * 16, 16, 16, 0, assets["actualGroundTile.tex"]);
+                    this.drawTile(tileArray[stageArray[j][i]], i, j);
                 }
             }
         }
 
         _r.layer--;
+    }
+
+
+    this.drawTile = function(tileSprite, i, j)
+    {
+        _r.sprite(this.drawX + i * 32 + 16, this.drawY + j * 32 + 16, 32, 32, 0, tileSprite);
     }
 
 
