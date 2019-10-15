@@ -9,10 +9,9 @@ var particles = [];
 
 function init()
 {
-    // player = new player(60, 162);
-    player = new player(200, 9+32+32);
+    player = new player(60, 168);
     background1 = new background(256, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
-    background2 = new background(256+512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
+    background2 = new background(256 + 512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
     stage = new stage();
     
     _r.color(1, 1, 1);
@@ -25,41 +24,13 @@ function draw()
     background1.draw();
     background2.draw();
     stage.draw();
-    
-
-    if (particles.length > 0)
-    {
-        for (let i = 0; i < particles.length; i++)
-        {
-            particles[i].draw();
-
-            if (particles[i].currentFrame >= particles[i].frameSheetLength / particles[i].frameSpriteLength)
-            {
-                particles.splice(i, 1);
-            }
-        }
-    }
+    drawParticles();
 }
 
 
 function think(time, dt)
 {
     player.think();
-
-    if (player.drawX == player.camXBoundL || player.drawX == player.camXBoundR)
-    {
-        background1.think();
-        background2.think();
-        stage.think();
-
-        if (particles.length > 0)
-        {
-            for (let i = 0; i < particles.length; i++)
-            {
-                particles[i].think();
-            }
-        }
-    }
 }
 
 
@@ -87,22 +58,23 @@ function player(x, y)
 {
     this.x = x || 0;
     this.y = y || 0;
+    this.w = 48;
+    this.h = 48;
     this.drawX = this.x;
     this.drawY = this.y;
     this.camXBoundL = 192;
     this.camXBoundR = 208;
-    this.w = 48;
-    this.h = 48;
 
     this.leftDown = false;
     this.rightDown = false;
+    this.upDown = false;
     this.downDown = false;
 
     this.braking = false;
     this.crouching = false;
-    this.leftGrounded = false;
-    this.rightGrounded = false;
     this.rolling = false;
+    this.leftGrounded = true;
+    this.rightGrounded = true;
 
     this.xsp = 0;
     this.ysp = 0;
@@ -146,11 +118,9 @@ function player(x, y)
         _r.sprite(this.drawX, this.drawY, this.w, this.h, 0, this.drawnFrame,
                   this.currentFrame * 48 / this.frameSheetLength, 0,
                   (this.currentFrame + 1) * 48 / this.frameSheetLength, 1);
-                //   print(this.y + ", " + this.drawY);
 
         
         // Animation functions (now a lot cleaner!)
-
         if (this.leftGrounded && this.rightGrounded)
         {
             this.brakingAnimation();
@@ -195,18 +165,17 @@ function player(x, y)
             }
         }
 
-        this.drawSensors();
+        // this.drawSensors();
     }
 
 
     this.think = function()
     {
-        this.leftGrounded = this.checkSensor(Math.trunc(this.x) - 7, Math.trunc(this.y) + 24);
-        this.rightGrounded = this.checkSensor(Math.trunc(this.x) + 7, Math.trunc(this.y) + 24);
-
         this.running();
-        this.roll();
-        this.transform();
+        // this.roll();
+        // this.collisions();
+        // this.transform();
+        // this.scrollStage();
     }
 
 
@@ -215,17 +184,17 @@ function player(x, y)
 
     this.running = function()
     {
-        if (this.leftDown)
+        if (this.leftDown) // move left
         {
             if (this.gsp > 0) { this.gsp -= this.dec; }
             else if (this.gsp > -this.top && !this.rolling) { this.gsp -= this.acc; }
         }
-        else if (this.rightDown)
+        else if (this.rightDown && !this.rolling) // move right
         {
             if (this.gsp < 0) { this.gsp += this.dec; }
             else if (this.gsp < this.top && !this.rolling) { this.gsp += this.acc; }
         }
-        else
+        else // apply friction
         { 
             this.gsp -= Math.min(Math.abs(this.gsp), this.frc)
                       * Math.sign(this.gsp);
@@ -291,100 +260,89 @@ function player(x, y)
 
         this.x += this.xsp;
 
-        if (this.x >= 192)
-        {
-            this.drawX = Math.min(Math.max(this.drawX + this.xsp, this.camXBoundL), this.camXBoundR);
-        }
-        else
-        {
-            this.drawX = this.x;
-        }
+        // if (this.x >= 192)
+        // {
+        //     this.drawX = Math.min(Math.max(this.drawX + this.xsp, this.camXBoundL), this.camXBoundR);
+        // }
+        // else
+        // {
+        //     this.drawX = this.x;
+        // }
+
+        this.drawX = Math.min(Math.max(this.drawX + this.xsp, this.camXBoundL), this.camXBoundR);
 
         // this.x = Math.min(Math.max(this.x, 50), 330);
         this.y += this.ysp;
-        this.drawY = Math.min(Math.max(this.y + this.ysp, -400), 230);
+        // this.drawY = Math.min(Math.max(this.y + this.ysp, -400), 230);
+        this.drawY = this.y;
     }
 
 
-    this.checkSensor = function(x, y)
+    this.checkLeftSensor = function(x, y)
     {
         // Round down the player's position to the nearest cell in the stage
-        roundedX = (x - (x % 32)) / 32;
-        roundedY = (y - (y % 32)) / 32;
+        roundedX = (x - (x % 16)) / 16;
+        roundedY = (y - (y % 16)) / 16;
+        stageTile = stageArray[roundedY][roundedX];
 
-        if (stageArray[roundedY][roundedX] != 0)// && (this.y % 32) <= heightMask[stageArray[roundedY][roundedX]][x % 32])
+        if (stageTile != 0)
         {
-            // if (y % 32 != 0)
-            // {
-                // this.y -= heightMask[1][x % 32] - (y % 32);
-                // this.y = heightMask[1][x % 32] - (this.y % 32);
-                // this.y = 0;
-                // print(y);
-            // }
-
-            
-            this.y = (roundedY * 32 + 9) - heightMask[stageArray[roundedY][roundedX]][x % 32];
-
-            if (stageArray[roundedY - 1][roundedX] != 0)
+            if (y > heightMask[stageTile][x % 16])
             {
-                this.y = ((roundedY - 1) * 32 + 9) - heightMask[stageArray[roundedY - 1][roundedX]][x % 32];
+                if (stageArray[roundedY - 1][x % 16] != 0)
+                {
+                    return roundedY * 16 - 24 - heightMask[stageArray[roundedY - 1][roundedX]][x % 16];
+                }
+                
+                return roundedY * 16 - 8 - heightMask[stageTile][x % 16];
             }
-            
-            return true;
+
+            this.leftGrounded = true;
         }
 
-        return false;
-
-        // return true;
-        // this.y = 32 - 24;
-        // return true;
-        // if (stageArray[roundedY][roundedX] == 2)
-        // {
-        //     // if (y % 32 != 0)
-        //     // {
-        //         this.y -= heightMask[1][x % 32] - (y % 32);
-        //     // }
-
-        //     return true;
-        // }
-
-        // if (stageArray[roundedY][roundedX] == 0)
-        // {
-        //     this.leftGrounded = false;
-        //     this.rightGrounded = false;
-        // }
-        // if (stageArray[roundedY][roundedX] == 1)
-        // {
-        //     this.leftGrounded = true;
-        //     this.rightGrounded = true;
-        //     // this.ysp = 0;
-        //     print(Math.floor(this.y));
-        //     print(heightMask[1][Math.floor(x) % 32]);
-
-
-
-        //     // print(stageArray[roundedY][roundedX]);
-        //     // print(x);
-        //     // return heightMask[1][x % 16];
-        //     print(heightMask[1][Math.floor(x) % 32]);
-        //     // print(x);
-        //     // print(Math.floor(x) % 16);
-            // this.y = heightMask[1][Math.floor(x) % 32] * (roundedY - 1);
-            // this.y = heightMask
-
-
-
-        // }
-
-
-
-        // else
-        // {
-        //     // print("oh god help");
-        //     // print(roundedX + ", " + roundedY);
-        // }
+        this.leftGrounded = false;
     }
 
+
+    this.checkRightSensor = function(x, y)
+    {
+        // Round down the player's position to the nearest cell in the stage
+        roundedX = (x - (x % 16)) / 16;
+        roundedY = (y - (y % 16)) / 16;
+        stageTile = stageArray[roundedY][roundedX];
+
+        if (stageTile != 0)
+        {
+            if (y > heightMask[stageTile][x % 16])
+            {
+                if (stageArray[roundedY - 1][x % 16] != 0)
+                {
+                    return roundedY * 16 - 24 - heightMask[stageArray[roundedY - 1][roundedX]][x % 16];
+                }
+            
+                return roundedY * 16 - 8 - heightMask[stageTile][x % 16];
+            }
+
+            this.rightGrounded = true;
+        }
+
+        this.rightGrounded = false;
+    }
+
+    this.collisions = function()
+    {
+        this.leftXY = this.checkLeftSensor(Math.trunc(this.x) - 7, Math.trunc(this.y) + 24);
+        this.rightXY = this.checkRightSensor(Math.trunc(this.x) + 7, Math.trunc(this.y) + 24);
+
+        if (this.leftXY > this.rightXY)
+        {
+            this.y = this.leftXY;
+        }
+        else
+        {
+            this.y = this.rightXY;
+        }
+    }
 
     ///////  [ ANIMATION FUNCTIONS ]  ///////
     // Functions used for their own respective animation and just drawing
@@ -568,6 +526,25 @@ function player(x, y)
     }
 
 
+    this.scrollStage = function()
+    {
+        if (player.drawX == player.camXBoundL || player.drawX == player.camXBoundR)
+        {
+            background1.think();
+            background2.think();
+            stage.think();
+
+            if (particles.length > 0)
+            {
+                for (let i = 0; i < particles.length; i++)
+                {
+                    particles[i].think();
+                }
+            }
+        }
+    }
+
+
     ///////  [ FUNCTION STORAGE ] ///////
     // A special function used to house all previous attempts at stuff that
     // might be used again some day. It should probably be in another file.
@@ -646,29 +623,41 @@ function player(x, y)
 }
 
 
-function ground(x, y)
+function stage()
 {
-    this.x = x || 0;
-    this.y = y || 0;
+    this.drawX = 0;
+    this.drawY = 0;
+    this.scrollSpeed = 1;
 
 
     this.draw = function()
     {
-        _r.sprite(this.x, this.y, 576, 216, 0, assets["groundTile.tex"]);
+        _r.layer++;
+
+        for(let j = 0; j < stageArray.length; j++)
+        {
+            for (let i = (player.x - (player.x % 16)) / 16 - 13; i < (player.x - (player.x % 16)) / 16 + 14; i++)
+            {
+                if (stageArray[j][i] != 0)
+                {
+                    this.drawTile(tileArray[stageArray[j][i]], i, j);
+                }
+            }
+        }
+
+        _r.layer--;
     }
+
+
+    this.drawTile = function(tileSprite, i, j)
+    {
+        _r.sprite(this.drawX + i * 16 + 8, this.drawY + j * 16 + 8, 16, 16, 0, tileSprite);
+    }
+
 
     this.think = function()
     {
-        this.x -= player.xsp;
-
-        if (this.x < -576 / 2)
-        {
-            this.x += 576 * 2;
-        }
-        else if (this.x > 864)
-        {
-            this.x -= 576 * 2;
-        }
+        this.drawX -= player.xsp * this.scrollSpeed;
     }
 }
 
@@ -742,41 +731,18 @@ function particle(x, y, w, h, asset, frameSpriteLength, frameSheetLength)
     }
 }
 
-
-function stage()
+function drawParticles()
 {
-    this.drawX = 0;
-    this.drawY = 0;
-    this.scrollSpeed = 1;
-
-
-    this.draw = function()
+    if (particles.length > 0)
     {
-        _r.layer++;
-
-        for(let j = 0; j < stageArray.length; j++)
+        for (let i = 0; i < particles.length; i++)
         {
-            for (let i = 0; i < stageArray[j].length; i++)
+            particles[i].draw();
+
+            if (particles[i].currentFrame >= particles[i].frameSheetLength / particles[i].frameSpriteLength)
             {
-                if (stageArray[j][i] != 0)
-                {
-                    this.drawTile(tileArray[stageArray[j][i]], i, j);
-                }
+                particles.splice(i, 1);
             }
         }
-
-        _r.layer--;
-    }
-
-
-    this.drawTile = function(tileSprite, i, j)
-    {
-        _r.sprite(this.drawX + i * 32 + 16, this.drawY + j * 32 + 16, 32, 32, 0, tileSprite);
-    }
-
-
-    this.think = function()
-    {
-        this.drawX -= player.xsp * this.scrollSpeed;
     }
 }

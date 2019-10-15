@@ -36,9 +36,15 @@
 		"groundTile": "textures/Ground.png",
 		"actualGroundTile": "textures/Ground_Tile.png",
 		"fullGroundTile": "textures/Ground_Tile_Full.png",
+		"tGroundTileSmall": "textures/Ground_Tile_Small.png",
 		"tGroundSlope1": "textures/Ground_Slope_1.png",
 		"tGroundSlope2": "textures/Ground_Slope_2.png",
-		"tGroundSlope3": "textures/Ground_slope_3.png",
+		"tGroundSlope3": "textures/Ground_Slope_3.png",
+		"tGroundSlope4": "textures/Ground_Slope_4.png",
+		"tGroundSlope5": "textures/Ground_Slope_5.png",
+		"tGroundSlope6": "textures/Ground_Slope_6.png",
+		"tGroundSlope7": "textures/Ground_Slope_7.png",
+		"tGroundSlope8": "textures/Ground_Slope_8.png",
 
 		"crosshair": "textures/Crosshair.png"
 	},
