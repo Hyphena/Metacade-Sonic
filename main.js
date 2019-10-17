@@ -183,7 +183,7 @@ function player(x, y)
         this.running();
         // this.roll();
         // this.collisions();
-        // this.transform();
+        this.transform();
         // this.scrollStage();
     }
 
@@ -369,14 +369,14 @@ function player(x, y)
             this.currentFrame = 0;
         }
         // Draw walking sprites
-        else if (this.gsp > 0 && this.gsp < 4.5)
+        else if (this.gsp > 0 && this.gsp < 3.5)
         {
             this.sprite = assets["rSonicWalking.tex"];
             this.frameSheetLength = 576;
             this.facingDir = true;
             this.frameDuration = 2;
         }
-        else if (this.gsp < 0 && this.gsp > -4.5)
+        else if (this.gsp < 0 && this.gsp > -3.5)
         {
             this.sprite = assets["lSonicWalking.tex"];
             this.frameSheetLength = 576;
@@ -384,13 +384,13 @@ function player(x, y)
             this.frameDuration = 2;
         }
         // Draw jogging sprite
-        else if (this.gsp >= 4.5 && this.gsp < 6)
+        else if (this.gsp >= 3.5 && this.gsp < 6)
         {
             this.sprite = assets["rSonicJogging.tex"];
             this.frameSheetLength = 480;
             this.frameDuration = 1;
         }
-        else if (this.gsp <= -4.5 && this.gsp > -6)
+        else if (this.gsp <= -3.5 && this.gsp > -6)
         {
             this.sprite = assets["lSonicJogging.tex"];
             this.frameSheetLength = 480;
