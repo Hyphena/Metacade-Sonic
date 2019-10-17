@@ -10,9 +10,9 @@ var particles = [];
 function init()
 {
     player = new player(60, 168);
-    background1 = new background(256, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
-    background2 = new background(256 + 512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
-    stage = new stage();
+    // background1 = new background(256, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
+    // background2 = new background(256 + 512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
+    // stage = new stage();
     
     _r.color(1, 1, 1);
 }
@@ -21,9 +21,9 @@ function init()
 function draw()
 {
     player.draw();
-    background1.draw();
-    background2.draw();
-    stage.draw();
+    // background1.draw();
+    // background2.draw();
+    // stage.draw();
     drawParticles();
 }
 
@@ -93,12 +93,13 @@ function player(x, y)
     this.slprolldown = 0.3125;
     this.fall = 2.5;
 
-    this.drawnFrame = assets["rSonicIdle.tex"];
+    this.sprite = assets["rSonicIdle.tex"];
     this.facingDir = true; // false = left; true = right
-    this.frameCounter = 0;
-    this.currentFrame = 0;
-    this.frameDuration = 0;
-    this.frameSheetLength = 48;
+
+    this.currentFrame = 0; // the current frame of animation we're on
+    this.frameCounter = 0; // a counter used to track the time an animation frame has been held
+    this.frameDuration = 0; // how long an animation frame should hold (measured in gameloops)
+    this.frameSheetLength = 48; // total length of the current spritesheet
 
 
     ///////  [ BASE FUNCTIONS ] ///////
@@ -113,57 +114,65 @@ function player(x, y)
         // frames will cycle through to a minimum of 1 step
         this.frameDuration = Math.max(8 - Math.abs(this.gsp), 1);
 
-        // Draw the sprite (48x48) with a rotation of 0 (drawnFrame = sprite)
+        // Draw the sprite (48x48) with a rotation of 0
         // clipping uses a value from 0 to 1 (weird)
-        _r.sprite(this.drawX, this.drawY, this.w, this.h, 0, this.drawnFrame,
+        _r.sprite(this.drawX, this.drawY, this.w, this.h, 0, this.sprite,
                   this.currentFrame * 48 / this.frameSheetLength, 0,
                   (this.currentFrame + 1) * 48 / this.frameSheetLength, 1);
 
         
         // Animation functions (now a lot cleaner!)
-        if (this.leftGrounded && this.rightGrounded)
-        {
-            this.brakingAnimation();
-            this.rollingAnimation();
-            this.crouchingAnimation();
-        }
-        else
-        {
-            this.balanceAnimation();
-        }
+        // if (this.leftGrounded && this.rightGrounded)
+        // {
+            // this.brakingAnimation();
+            // this.rollingAnimation();
+            // this.crouchingAnimation();
+        // }
+        // else
+        // {
+        //     this.balanceAnimation();
+        // }
 
-        if (!this.braking && !this.downDown && !this.rolling)
-        {
+        // if (!this.braking && !this.downDown && !this.rolling)
+        // {
             this.runningAnimation();
-        }
+        // }
 
 
-        if (!this.crouching)
-        {
+        // if (!this.crouching)
+        // {
             // Increment the counter while under the frame's duration
             // otherwise, advance a frame and refresh the counter.
-            if (this.frameCounter <= this.frameDuration)
-            { 
-                this.frameCounter++;
+            if (this.frameSheetLength != 48)
+            {
+                if (this.frameCounter <= this.frameDuration)
+                { 
+                    this.frameCounter++;
+                }
+                else
+                {
+                    this.frameCounter = 0;
+                    this.currentFrame++;
+                }
             }
             else
             {
                 this.frameCounter = 0;
-                this.currentFrame++;
+                this.currentFrame = 0;
             }
-        }
-        else
-        {
-            if (this.frameCounter <= this.frameDuration)
-            {
-                this.frameCounter++;
-            }
-            else if (this.currentFrame + 1 <= 3)
-            {
-                this.frameCounter = 0;
-                this.currentFrame++;
-            }
-        }
+        // }
+        // else
+        // {
+        //     if (this.frameCounter <= this.frameDuration)
+        //     {
+        //         this.frameCounter++;
+        //     }
+        //     else if (this.currentFrame + 1 <= 3)
+        //     {
+        //         this.frameCounter = 0;
+        //         this.currentFrame++;
+        //     }
+        // }
 
         // this.drawSensors();
     }
@@ -353,8 +362,8 @@ function player(x, y)
         // Draw idle sprites
         if (this.gsp == 0 && this.leftGrounded && this.rightGrounded)
         { 
-            if (this.facingDir) { this.drawnFrame = assets["rSonicIdle.tex"]; }
-            else { this.drawnFrame = assets["lSonicIdle.tex"]; }
+            if (this.facingDir) { this.sprite = assets["rSonicIdle.tex"]; }
+            else { this.sprite = assets["lSonicIdle.tex"]; }
             
             this.frameSheetLength = 48;
             this.currentFrame = 0;
@@ -362,14 +371,14 @@ function player(x, y)
         // Draw walking sprites
         else if (this.gsp > 0 && this.gsp < 4.5)
         {
-            this.drawnFrame = assets["rSonicWalking.tex"];
+            this.sprite = assets["rSonicWalking.tex"];
             this.frameSheetLength = 576;
             this.facingDir = true;
             this.frameDuration = 2;
         }
         else if (this.gsp < 0 && this.gsp > -4.5)
         {
-            this.drawnFrame = assets["lSonicWalking.tex"];
+            this.sprite = assets["lSonicWalking.tex"];
             this.frameSheetLength = 576;
             this.facingDir = false;
             this.frameDuration = 2;
@@ -377,26 +386,26 @@ function player(x, y)
         // Draw jogging sprite
         else if (this.gsp >= 4.5 && this.gsp < 6)
         {
-            this.drawnFrame = assets["rSonicJogging.tex"];
+            this.sprite = assets["rSonicJogging.tex"];
             this.frameSheetLength = 480;
             this.frameDuration = 1;
         }
         else if (this.gsp <= -4.5 && this.gsp > -6)
         {
-            this.drawnFrame = assets["lSonicJogging.tex"];
+            this.sprite = assets["lSonicJogging.tex"];
             this.frameSheetLength = 480;
             this.frameDuration = 1;
         }
         // Draw running sprite
         else if (this.gsp >= 6)
         {
-            this.drawnFrame = assets["rSonicRunning.tex"];
+            this.sprite = assets["rSonicRunning.tex"];
             this.frameSheetLength = 384;
             this.frameDuration = .5;
         }
         else if (this.gsp <= -6)
         {
-            this.drawnFrame = assets["lSonicRunning.tex"];
+            this.sprite = assets["lSonicRunning.tex"];
             this.frameSheetLength = 384;
             this.frameDuration = .5;
         }
@@ -414,13 +423,13 @@ function player(x, y)
         {
             this.braking = true
             this.currentFrame = 0;
-            this.drawnFrame = assets["rSonicBraking.tex"];
+            this.sprite = assets["rSonicBraking.tex"];
         }
         if (this.rightDown && this.gsp <= -4.5 && !this.braking)
         {
             this.braking = true;
             this.currentFrame = 0;
-            this.drawnFrame = assets["lSonicBraking.tex"];
+            this.sprite = assets["lSonicBraking.tex"];
         }
 
         // Animate the sprites
@@ -470,11 +479,11 @@ function player(x, y)
 
             if (this.facingDir)
             {
-                this.drawnFrame = assets["rSonicCrouch.tex"];
+                this.sprite = assets["rSonicCrouch.tex"];
             }
             else
             {
-                this.drawnFrame = assets["lSonicCrouch.tex"];
+                this.sprite = assets["lSonicCrouch.tex"];
             }
 
             this.frameSheetLength = 192;
@@ -488,11 +497,11 @@ function player(x, y)
         {
             if (this.facingDir)
             {
-                this.drawnFrame = assets["rSonicRoll.tex"];
+                this.sprite = assets["rSonicRoll.tex"];
             }
             else
             {
-                this.drawnFrame = assets["lSonicRoll.tex"];
+                this.sprite = assets["lSonicRoll.tex"];
             }
 
             this.frameSheetLength = 768;
@@ -505,7 +514,7 @@ function player(x, y)
     {
         if (this.leftGrounded && !this.rightGrounded)
         {
-            this.drawnFrame = assets["rSonicBalance2.tex"];
+            this.sprite = assets["rSonicBalance2.tex"];
             this.frameSheetLength = 384;
             this.frameDuration = 3;
         }
