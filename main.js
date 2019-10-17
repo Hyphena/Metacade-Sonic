@@ -10,9 +10,9 @@ var particles = [];
 function init()
 {
     player = new player(60, 168);
-    // background1 = new background(256, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
-    // background2 = new background(256 + 512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
-    // stage = new stage();
+    background1 = new background(256, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
+    background2 = new background(256 + 512, -256, 512, 1024, assets["backgroundMain.tex"], 0.1);
+    stage = new stage();
     
     _r.color(1, 1, 1);
 }
@@ -21,9 +21,9 @@ function init()
 function draw()
 {
     player.draw();
-    // background1.draw();
-    // background2.draw();
-    // stage.draw();
+    background1.draw();
+    background2.draw();
+    stage.draw();
     drawParticles();
 }
 
@@ -122,27 +122,31 @@ function player(x, y)
 
         
         // Animation functions (now a lot cleaner!)
-        // if (this.leftGrounded && this.rightGrounded)
-        // {
-            // this.brakingAnimation();
-            // this.rollingAnimation();
-            // this.crouchingAnimation();
-        // }
-        // else
-        // {
-        //     this.balanceAnimation();
-        // }
+        if (this.leftGrounded && this.rightGrounded)
+        {
+            this.brakingAnimation();
+            this.rollingAnimation();
+            this.crouchingAnimation();
+        }
+        else
+        {
+            this.balanceAnimation();
+        }
 
-        // if (!this.braking && !this.downDown && !this.rolling)
-        // {
+        if (!this.braking && !this.downDown && !this.rolling)
+        {
             this.runningAnimation();
-        // }
+        }
 
 
-        // if (!this.crouching)
-        // {
+        if (!this.crouching)
+        {
             // Increment the counter while under the frame's duration
             // otherwise, advance a frame and refresh the counter.
+
+            // Only increment the framecount and current frame when
+            // there is more than one sprite in the animation.
+
             if (this.frameSheetLength != 48)
             {
                 if (this.frameCounter <= this.frameDuration)
@@ -160,31 +164,31 @@ function player(x, y)
                 this.frameCounter = 0;
                 this.currentFrame = 0;
             }
-        // }
-        // else
-        // {
-        //     if (this.frameCounter <= this.frameDuration)
-        //     {
-        //         this.frameCounter++;
-        //     }
-        //     else if (this.currentFrame + 1 <= 3)
-        //     {
-        //         this.frameCounter = 0;
-        //         this.currentFrame++;
-        //     }
-        // }
+        }
+        else
+        {
+            if (this.frameCounter <= this.frameDuration)
+            {
+                this.frameCounter++;
+            }
+            else if (this.currentFrame + 1 <= 3)
+            {
+                this.frameCounter = 0;
+                this.currentFrame++;
+            }
+        }
 
-        // this.drawSensors();
+        this.drawSensors();
     }
 
 
     this.think = function()
     {
         this.running();
-        // this.roll();
+        this.roll();
         // this.collisions();
         this.transform();
-        // this.scrollStage();
+        this.scrollStage();
     }
 
 
@@ -369,14 +373,14 @@ function player(x, y)
             this.currentFrame = 0;
         }
         // Draw walking sprites
-        else if (this.gsp > 0 && this.gsp < 3.5)
+        else if (this.gsp > 0 && this.gsp < 4.5)
         {
             this.sprite = assets["rSonicWalking.tex"];
             this.frameSheetLength = 576;
             this.facingDir = true;
             this.frameDuration = 2;
         }
-        else if (this.gsp < 0 && this.gsp > -3.5)
+        else if (this.gsp < 0 && this.gsp > -4.5)
         {
             this.sprite = assets["lSonicWalking.tex"];
             this.frameSheetLength = 576;
@@ -384,13 +388,13 @@ function player(x, y)
             this.frameDuration = 2;
         }
         // Draw jogging sprite
-        else if (this.gsp >= 3.5 && this.gsp < 6)
+        else if (this.gsp >= 4.5 && this.gsp < 6)
         {
             this.sprite = assets["rSonicJogging.tex"];
             this.frameSheetLength = 480;
             this.frameDuration = 1;
         }
-        else if (this.gsp <= -3.5 && this.gsp > -6)
+        else if (this.gsp <= -4.5 && this.gsp > -6)
         {
             this.sprite = assets["lSonicJogging.tex"];
             this.frameSheetLength = 480;
