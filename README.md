@@ -7,8 +7,8 @@ This repository is my attempt to create a game engine with the stylings and game
 
 ## Installation
 * Download and extract the [Metacade API](https://forums.pixeltailgames.com/t/arcade-tool-for-people-who-want-to-mess-with-it/23715/)
-* Clone this repo into `/metacade/projects`
-* Run it using the command `tool Metacade-Sonic`
+* Clone the repo into `/metacade/projects`
+* Run it with the command `tool Metacade-Sonic`
 
 ## Additional Information
 I currently do not have plans to update this project or review contributions. All non-original material on this site is copyrighted by their respective owners, and no copyright infringement is intended.
